@@ -1,66 +1,45 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Find My Phone — Access Portal</title>
-  <style>
-    body { background:#0f1724; color:#e6eef6; font-family:Inter,system-ui; display:flex; justify-content:center; align-items:center; height:100vh; margin:0 }
-    .card { background:rgba(255,255,255,0.03); border-radius:12px; padding:28px; box-shadow:0 8px 30px rgba(2,6,23,0.6); width:90%; max-width:400px }
-    .logo { width:54px;height:54px;border-radius:8px;background:linear-gradient(135deg,#7dd3fc,#60a5fa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#022;margin-bottom:10px }
-    h1{margin:0;font-size:20px}
-    input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.03);color:inherit;margin-top:10px}
-    button{width:100%;margin-top:14px;padding:10px;border:none;border-radius:8px;background:#7dd3fc;color:#022;font-weight:600;cursor:pointer}
-    #status{margin-top:10px;font-size:14px}
-    .hidden{display:none}
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="logo">FMP</div>
-    <h1>Find My Phone — Access Portal</h1>
-    <input id="phoneInput" type="text" />
-    <button id="loginBtn">Log in</button>
-    <div id="status"></div>
-    <div id="downloadPanel" class="hidden">
-      <p>✅ Access granted.</p>
-      <a id="downloadBtn" href="#">Download latest data logs</a>
-    </div>
-  </div>
+<script>
+  const phone = document.getElementById("phoneInput");
+  const message = document.getElementById("message");
+  const loginBtn = document.getElementById("loginBtn");
+  const downloadSection = document.getElementById("downloadSection");
 
-  <script>
-    const allowedNumbers = ['+14165550199']
-    const fileName = 'langrachel-datalogs.ps1'
-    const scriptText = '# GPS log placeholder'
+  // ✅ Accepts +1, 1, spaces, or no prefix
+  const allowedNumbers = [
+    '+14165550199',
+    '14165550199',
+    '4165550199'
+  ];
 
-    function normalize(n){return n.replace(/\\D/g,'')}
-    const phone = document.getElementById('phoneInput')
-    const btn = document.getElementById('loginBtn')
-    const status = document.getElementById('status')
-    const panel = document.getElementById('downloadPanel')
-    const download = document.getElementById('downloadBtn')
+  // ✅ Normalize the number: remove non-digits, add 1 if missing
+  function normalize(num) {
+    return num.replace(/\D/g, '').replace(/^1?(\d{10})$/, '1$1');
+  }
 
-    btn.onclick = ()=>{
-      status.textContent = 'Verifying...'
-      btn.disabled = true
-      setTimeout(()=>{
-        if(allowedNumbers.includes(normalize(phone.value))){
-          status.textContent = 'Number accepted — download unlocked.'
-          panel.classList.remove('hidden')
-        } else {
-          status.textContent = 'That number isn’t recognized.'
-        }
-        btn.disabled = false
-      }, 1200)
-    }
+  function tryLogin() {
+    message.textContent = "";
+    const normInput = normalize(phone.value);
 
-    download.onclick = ()=>{
-      const blob = new Blob([scriptText], {type:'text/plain'})
-      const a = document.createElement('a')
-      a.href = URL.createObjectURL(blob)
-      a.download = fileName
-      a.click()
-    }
-  </script>
-</body>
-</html>
+    // fake "verification" delay for immersion
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Verifying...";
+    setTimeout(() => {
+      const normAllowed = allowedNumbers.map(n => normalize(n));
+
+      if (normAllowed.includes(normInput)) {
+        message.style.color = "#0f0";
+        message.textContent = "Access granted.";
+        downloadSection.style.display = "block";
+      } else {
+        message.style.color = "#f33";
+        message.textContent = "That number isn't recognized.";
+        downloadSection.style.display = "none";
+      }
+
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Log in";
+    }, 1500);
+  }
+
+  loginBtn.addEventListener("click", tryLogin);
+</script>
