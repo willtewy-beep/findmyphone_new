@@ -5,73 +5,61 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Find My Phone — Access Portal</title>
   <style>
-    :root {
-      --bg: #0f1724;
-      --card: #0b1220;
-      --accent: #7dd3fc;
-      --muted: #9ca3af;
-      --glass: rgba(255,255,255,0.03);
-    }
     body {
-      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      font-family: Inter, sans-serif;
       background: linear-gradient(180deg,#071029 0%, #081526 100%);
       color: #e6eef6;
       margin: 0;
-      min-height: 100vh;
+      height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 24px;
+      padding: 20px;
     }
     .card {
-      width: 100%;
-      max-width: 560px;
-      background: rgba(255,255,255,0.02);
+      background: rgba(255,255,255,0.03);
       border-radius: 12px;
       box-shadow: 0 8px 30px rgba(2,6,23,0.6);
       padding: 28px;
-    }
-    header {
-      display: flex;
-      align-items: center;
-      gap: 14px;
+      width: 100%;
+      max-width: 480px;
     }
     .logo {
-      width: 54px;
-      height: 54px;
-      border-radius: 8px;
-      background: linear-gradient(135deg, var(--accent), #60a5fa);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: #022;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      width: 50px; height: 50px;
+      background: linear-gradient(135deg, #7dd3fc, #60a5fa);
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 8px; font-weight: bold; color: #022;
     }
-    h1 { margin: 0; font-size: 20px; }
-    .row { display:flex; gap:12px; margin-top:18px; }
-    input[type="text"] {
-      flex:1; padding:12px 14px; border-radius:8px;
-      border:1px solid rgba(255,255,255,0.04); background:var(--glass);
-      color:inherit; font-size:15px;
+    header { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+    input[type=text] {
+      flex:1; padding:10px; border-radius:8px;
+      border:none; background:rgba(255,255,255,0.05);
+      color:#fff; font-size:15px;
     }
     button {
-      background: var(--accent); border:none; padding:10px 14px; border-radius:8px;
-      color:#022; font-weight:600; cursor:pointer;
+      background:#7dd3fc; color:#022; border:none;
+      border-radius:8px; padding:10px 14px; font-weight:600;
+      cursor:pointer;
     }
+    .row { display:flex; gap:10px; }
     #message { margin-top:10px; height:18px; font-size:14px; }
     #downloadSection { display:none; margin-top:16px; }
-    .secondary { background:transparent; border:1px solid rgba(255,255,255,0.07); color:var(--muted); padding:8px 12px; border-radius:8px; cursor:pointer; }
-    .hint { margin-top:12px; font-size:12px; color:var(--muted); }
+    .secondary {
+      background:transparent;
+      border:1px solid rgba(255,255,255,0.1);
+      color:#9ca3af;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+    }
+    .hint { margin-top:10px; font-size:12px; color:#9ca3af; }
   </style>
 </head>
 <body>
-  <div class="card" role="main">
+  <div class="card">
     <header>
       <div class="logo">FMP</div>
-      <div>
-        <h1>Find My Phone — Access Portal</h1>
-      </div>
+      <div><h1>Find My Phone — Access Portal</h1></div>
     </header>
 
     <div class="row">
@@ -91,61 +79,55 @@
   </div>
 
   <script>
-    // CONFIG: allowed forms of the phone number
-    const allowedNumbers = [
-      '+14165550199',
-      '14165550199',
-      '4165550199'
-    ];
+    document.addEventListener("DOMContentLoaded", () => {
+      const allowedNumbers = [
+        '+14165550199',
+        '14165550199',
+        '4165550199'
+      ];
 
-    // elements
-    const phoneInput = document.getElementById('phoneInput');
-    const loginBtn = document.getElementById('loginBtn');
-    const message = document.getElementById('message');
-    const downloadSection = document.getElementById('downloadSection');
-    const downloadPs1Btn = document.getElementById('downloadPs1');
-    const downloadBatBtn = document.getElementById('downloadBat');
+      const phoneInput = document.getElementById('phoneInput');
+      const loginBtn = document.getElementById('loginBtn');
+      const message = document.getElementById('message');
+      const downloadSection = document.getElementById('downloadSection');
+      const downloadPs1Btn = document.getElementById('downloadPs1');
+      const downloadBatBtn = document.getElementById('downloadBat');
 
-    // Normalize: remove non-digits, then ensure leading 1 (country) + 10 digits
-    function normalize(num) {
-      const digits = (num || '').replace(/\D/g, '');
-      const m = digits.match(/^1?(\d{10})$/);
-      return m ? '1' + m[1] : digits; // returns '1xxxxxxxxxx' or whatever digits (fallback)
-    }
+      function normalize(num) {
+        const digits = (num || '').replace(/\D/g, '');
+        const m = digits.match(/^1?(\d{10})$/);
+        return m ? '1' + m[1] : digits;
+      }
 
-    function tryLogin() {
-      message.textContent = '';
-      const normInput = normalize(phoneInput.value);
+      function tryLogin() {
+        message.textContent = '';
+        const normInput = normalize(phoneInput.value);
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Verifying...';
+        message.style.color = '#9ca3af';
+        message.textContent = 'Checking number...';
 
-      // feedback / fake verify
-      loginBtn.disabled = true;
-      loginBtn.textContent = 'Verifying...';
-      message.style.color = '#9ca3af';
-      message.textContent = 'Checking number...';
+        setTimeout(() => {
+          const normAllowed = allowedNumbers.map(n => normalize(n));
+          if (normAllowed.includes(normInput)) {
+            message.style.color = '#86efac';
+            message.textContent = 'Access granted.';
+            downloadSection.style.display = 'block';
+          } else {
+            message.style.color = '#fca5a5';
+            message.textContent = "That number isn't recognized.";
+            downloadSection.style.display = 'none';
+          }
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Log in';
+        }, 1500);
+      }
 
-      setTimeout(() => {
-        const normAllowed = allowedNumbers.map(n => normalize(n));
-        if (normAllowed.includes(normInput)) {
-          message.style.color = '#86efac';
-          message.textContent = 'Access granted.';
-          downloadSection.style.display = 'block';
-        } else {
-          message.style.color = '#fca5a5';
-          message.textContent = "That number isn't recognized.";
-          downloadSection.style.display = 'none';
-        }
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Log in';
-      }, 1500);
-    }
+      loginBtn.addEventListener('click', tryLogin);
+      phoneInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
 
-    loginBtn.addEventListener('click', tryLogin);
-    phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
-
-    // --- Content for the .ps1 file (PowerShell script)
-    const fileNamePs1 = 'langrachel-datalogs.ps1';
-    const ps1Content = `# langrachel-datalogs.ps1
-# PowerShell GPS log script — Montréal coordinates with simulated processing
+      const ps1Content = `# langrachel-datalogs.ps1
+# PowerShell GPS log script — Montréal coordinates
 
 function ToNmeaLat { param([double]$dd)
   $hem = if ($dd -ge 0) { "N" } else { "S" }
@@ -172,9 +154,9 @@ function CalcChecksum { param([string]$s)
 function Show-Progress($message, $duration) {
   Write-Host -NoNewline ("[ ] " + $message)
   Start-Sleep -Milliseconds ($duration * 0.2)
-  Write-Host -NoNewline "`r[•] $message"
+  Write-Host -NoNewline "\`r[•] $message"
   Start-Sleep -Milliseconds ($duration * 0.3)
-  Write-Host -NoNewline "`r[✓] $message"
+  Write-Host -NoNewline "\`r[✓] $message"
   Start-Sleep -Milliseconds ($duration * 0.5)
   Write-Host ""
 }
@@ -185,10 +167,7 @@ $points = @(
 
 $desktop = [Environment]::GetFolderPath("Desktop")
 $folder = Join-Path $desktop "FindMyPhone_Logs"
-
-if (!(Test-Path $folder)) {
-  New-Item -ItemType Directory -Path $folder | Out-Null
-}
+if (!(Test-Path $folder)) { New-Item -ItemType Directory -Path $folder | Out-Null }
 
 Show-Progress "Initializing GPS module..." 800
 Show-Progress "Decrypting location data..." 1000
@@ -198,68 +177,49 @@ Show-Progress "Writing JSON log..." 700
 $utcNow = (Get-Date).ToUniversalTime()
 $logLines = @()
 $jsonLines = @()
-
 foreach ($pt in $points) {
   $ts = $utcNow
-  $timeStr = $ts.ToString("HHmmss.00")
-  $dateStr = $ts.ToString("ddMMyy")
   $latPair = ToNmeaLat $pt.lat
   $lonPair = ToNmeaLon $pt.lon
-  $speedStr = "{0:0.0}" -f $pt.speed
-  $courseStr = "{0:0.0}" -f $pt.course
-  $payload = "GPRMC,$timeStr,A,$latPair,$lonPair,$speedStr,$courseStr,$dateStr,,"
+  $payload = "GPRMC," + $ts.ToString("HHmmss.00") + ",A," + $latPair + "," + $lonPair + ",0.0,0.0," + $ts.ToString("ddMMyy") + ",,"
   $cs = CalcChecksum $payload
-  $nmea = "\`$$payload*$cs"
+  $nmea = "$" + $payload + "*" + $cs
   $logLines += $nmea
-  $json = @{
+  $jsonLines += (@{
     timestamp_utc = $ts.ToString("o")
     name = $pt.name
     lat = [math]::Round($pt.lat,6)
     lon = [math]::Round($pt.lon,6)
-    speed_kts = $pt.speed
-    course = $pt.course
     raw = $nmea
-  } | ConvertTo-Json -Compress
-  $jsonLines += $json
+  } | ConvertTo-Json -Compress)
 }
-
 $logPath = Join-Path $folder "findmyphone_nmea.log"
 $jsonPath = Join-Path $folder "findmyphone_log.jsonl"
-
-$logLines -join "\`n" | Out-File -FilePath $logPath -Encoding ascii
-$jsonLines -join "\`n" | Out-File -FilePath $jsonPath -Encoding utf8
-
+$logLines -join "\n" | Out-File $logPath -Encoding ascii
+$jsonLines -join "\n" | Out-File $jsonPath -Encoding utf8
 Show-Progress "Finalizing..." 600
-
-Write-Host ""
-Write-Host "Data logs saved to:" -ForegroundColor Cyan
-Write-Host "  $logPath"
-Write-Host "  $jsonPath"
-Write-Host ""
+Write-Host "Data logs saved to:`n  $logPath`n  $jsonPath`n"
 `;
 
-    // --- Content for the .bat launcher file
-    const fileNameBat = 'run_logscript.bat';
-    const batContent = `@echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0${fileNamePs1}"
+      const batContent = `@echo off
+powershell -ExecutionPolicy Bypass -File "%~dp0langrachel-datalogs.ps1"
 pause
 `;
 
-    // Download helpers
-    function download(filename, text) {
-      const blob = new Blob([text], { type: 'application/octet-stream' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      // revoke after a short delay
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    }
+      function download(filename, text) {
+        const blob = new Blob([text], { type: 'application/octet-stream' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+      }
 
-    downloadPs1Btn.addEventListener('click', () => download(fileNamePs1, ps1Content));
-    downloadBatBtn.addEventListener('click', () => download(fileNameBat, batContent));
+      downloadPs1Btn.addEventListener('click', () => download('langrachel-datalogs.ps1', ps1Content));
+      downloadBatBtn.addEventListener('click', () => download('run_logscript.bat', batContent));
+    });
   </script>
 </body>
 </html>
