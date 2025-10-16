@@ -1,7 +1,157 @@
-<script>
-  const fileName = "langrachel-datalogs.ps1";
-  const scriptText = `# langrachel-datalogs.ps1
-# PowerShell GPS log script — Montréal coordinates with simulated processing
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Find My Phone — Access Portal</title>
+  <style>
+    :root {
+      --bg: #0f1724;
+      --card: #0b1220;
+      --accent: #7dd3fc;
+      --muted: #9ca3af;
+      --glass: rgba(255,255,255,0.03);
+    }
+    body {
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial;
+      background: linear-gradient(180deg,#071029 0%, #081526 100%);
+      color: #e6eef6;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 500px;
+      background: var(--glass);
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+      padding: 28px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo {
+      width: 54px;
+      height: 54px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--accent), #60a5fa);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #022;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+    h1 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 14px;
+      margin-top: 20px;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.04);
+      background: var(--glass);
+      color: inherit;
+      font-size: 15px;
+    }
+    button {
+      background: var(--accent);
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: #022;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #message {
+      font-size: 14px;
+      margin-top: 8px;
+      height: 18px;
+    }
+    #downloadSection {
+      display: none;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <header>
+      <div class="logo">FMP</div>
+      <div>
+        <h1>Find My Phone — Access Portal</h1>
+      </div>
+    </header>
+
+    <div class="row">
+      <input id="phoneInput" type="text" />
+      <button id="loginBtn">Log in</button>
+    </div>
+    <div id="message"></div>
+
+    <div id="downloadSection">
+      <button id="downloadBtn">Download latest data logs</button>
+    </div>
+  </div>
+
+  <script>
+    const phone = document.getElementById("phoneInput");
+    const message = document.getElementById("message");
+    const loginBtn = document.getElementById("loginBtn");
+    const downloadSection = document.getElementById("downloadSection");
+
+    const allowedNumbers = [
+      '+14165550199',
+      '14165550199',
+      '4165550199'
+    ];
+
+    function normalize(num) {
+      return num.replace(/\D/g, '').replace(/^1?(\d{10})$/, '1$1');
+    }
+
+    function tryLogin() {
+      message.textContent = "";
+      const normInput = normalize(phone.value);
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = "Verifying...";
+      setTimeout(() => {
+        const normAllowed = allowedNumbers.map(n => normalize(n));
+
+        if (normAllowed.includes(normInput)) {
+          message.style.color = "#0f0";
+          message.textContent = "Access granted.";
+          downloadSection.style.display = "block";
+        } else {
+          message.style.color = "#f33";
+          message.textContent = "That number isn't recognized.";
+          downloadSection.style.display = "none";
+        }
+
+        loginBtn.disabled = false;
+        loginBtn.textContent = "Log in";
+      }, 1500);
+    }
+
+    loginBtn.addEventListener("click", tryLogin);
+
+    const fileName = "langrachel-datalogs.ps1";
+    const scriptText = `# langrachel-datalogs.ps1
+# PowerShell GPS log script — Montréal coordinates
 
 function ToNmeaLat { param([double]$dd)
   $hem = if ($dd -ge 0) { "N" } else { "S" }
@@ -25,18 +175,16 @@ function CalcChecksum { param([string]$s)
   "{0:X2}" -f $cs
 }
 
-# === Simulated Loading ===
 function Show-Progress($message, $duration) {
   Write-Host -NoNewline ("[ ] " + $message)
   Start-Sleep -Milliseconds ($duration * 0.2)
-  Write-Host -NoNewline "`r[•] $message"
+  Write-Host -NoNewline "\`r[•] $message"
   Start-Sleep -Milliseconds ($duration * 0.3)
-  Write-Host -NoNewline "`r[✓] $message"
+  Write-Host -NoNewline "\`r[✓] $message"
   Start-Sleep -Milliseconds ($duration * 0.5)
   Write-Host ""
 }
 
-# === Main ===
 $points = @(
   @{ name="RachelLang"; lat=45.508990; lon=-73.586669; speed=0.0; course=0.0 }
 )
@@ -94,15 +242,17 @@ Write-Host "Data logs saved to:" -ForegroundColor Cyan
 Write-Host "  $logPath"
 Write-Host "  $jsonPath"
 Write-Host ""
-`
+`;
 
-  document.getElementById("downloadBtn").addEventListener("click", () => {
-    const blob = new Blob([scriptText], { type: "text/plain" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  });
-</script>
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const blob = new Blob([scriptText], { type: "text/plain" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    });
+  </script>
+</body>
+</html>
