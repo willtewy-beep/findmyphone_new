@@ -79,146 +79,132 @@
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const allowedNumbers = [
-        '+14165550199',
-        '14165550199',
-        '4165550199'
-      ];
-
-      const phoneInput = document.getElementById('phoneInput');
-      const loginBtn = document.getElementById('loginBtn');
-      const message = document.getElementById('message');
-      const downloadSection = document.getElementById('downloadSection');
-      const downloadPs1Btn = document.getElementById('downloadPs1');
-      const downloadBatBtn = document.getElementById('downloadBat');
+    document.addEventListener("DOMContentLoaded", function() {
+      const allowedNumbers = ["+14165550199","14165550199","4165550199"];
+      const phoneInput = document.getElementById("phoneInput");
+      const loginBtn = document.getElementById("loginBtn");
+      const message = document.getElementById("message");
+      const downloadSection = document.getElementById("downloadSection");
+      const downloadPs1Btn = document.getElementById("downloadPs1");
+      const downloadBatBtn = document.getElementById("downloadBat");
 
       function normalize(num) {
-        const digits = (num || '').replace(/\D/g, '');
+        const digits = (num || "").replace(/\D/g, "");
         const m = digits.match(/^1?(\d{10})$/);
-        return m ? '1' + m[1] : digits;
+        return m ? "1" + m[1] : digits;
       }
 
       function tryLogin() {
-        message.textContent = '';
+        message.textContent = "";
         const normInput = normalize(phoneInput.value);
         loginBtn.disabled = true;
-        loginBtn.textContent = 'Verifying...';
-        message.style.color = '#9ca3af';
-        message.textContent = 'Checking number...';
+        loginBtn.textContent = "Verifying...";
+        message.style.color = "#9ca3af";
+        message.textContent = "Checking number...";
 
-        setTimeout(() => {
+        setTimeout(function() {
           const normAllowed = allowedNumbers.map(n => normalize(n));
           if (normAllowed.includes(normInput)) {
-            message.style.color = '#86efac';
-            message.textContent = 'Access granted.';
-            downloadSection.style.display = 'block';
+            message.style.color = "#86efac";
+            message.textContent = "Access granted.";
+            downloadSection.style.display = "block";
           } else {
-            message.style.color = '#fca5a5';
+            message.style.color = "#fca5a5";
             message.textContent = "That number isn't recognized.";
-            downloadSection.style.display = 'none';
+            downloadSection.style.display = "none";
           }
           loginBtn.disabled = false;
-          loginBtn.textContent = 'Log in';
+          loginBtn.textContent = "Log in";
         }, 1500);
       }
 
-      loginBtn.addEventListener('click', tryLogin);
-      phoneInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryLogin(); });
+      loginBtn.addEventListener("click", tryLogin);
+      phoneInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") tryLogin();
+      });
 
-      const ps1Content = `# langrachel-datalogs.ps1
-# PowerShell GPS log script — Montréal coordinates
+      const ps1Content = [
+        "# langrachel-datalogs.ps1",
+        "# PowerShell GPS log script — Montréal coordinates",
+        "",
+        "function ToNmeaLat { param([double]$dd)",
+        '  $hem = if ($dd -ge 0) { "N" } else { "S" }',
+        "  $dd = [math]::Abs($dd)",
+        "  $deg = [math]::Floor($dd)",
+        "  $min = ($dd - $deg) * 60",
+        '  "{0:00}{1:00.0000},$hem" -f $deg,$min',
+        "}",
+        "",
+        "function ToNmeaLon { param([double]$dd)",
+        '  $hem = if ($dd -ge 0) { "E" } else { "W" }',
+        "  $dd = [math]::Abs($dd)",
+        "  $deg = [math]::Floor($dd)",
+        "  $min = ($dd - $deg) * 60",
+        '  "{0:000}{1:00.0000},$hem" -f $deg,$min',
+        "}",
+        "",
+        "function CalcChecksum { param([string]$s)",
+        "  $cs = 0",
+        "  foreach ($ch in $s.ToCharArray()) { $cs = $cs -bxor [byte][char]$ch }",
+        '  "{0:X2}" -f $cs',
+        "}",
+        "",
+        "function Show-Progress($message, $duration) {",
+        '  Write-Host -NoNewline ("[ ] " + $message)',
+        "  Start-Sleep -Milliseconds ($duration * 0.2)",
+        '  Write-Host -NoNewline "`r[•] $message"',
+        "  Start-Sleep -Milliseconds ($duration * 0.3)",
+        '  Write-Host -NoNewline "`r[✓] $message"',
+        "  Start-Sleep -Milliseconds ($duration * 0.5)",
+        "  Write-Host \"\"",
+        "}",
+        "",
+        '$points = @( @{ name="RachelLang"; lat=45.508990; lon=-73.586669; speed=0.0; course=0.0 } )',
+        "",
+        '$desktop = [Environment]::GetFolderPath("Desktop")',
+        '$folder = Join-Path $desktop "FindMyPhone_Logs"',
+        "if (!(Test-Path $folder)) { New-Item -ItemType Directory -Path $folder | Out-Null }",
+        "",
+        'Show-Progress "Initializing GPS module..." 800',
+        'Show-Progress "Decrypting location data..." 1000',
+        'Show-Progress "Writing NMEA log..." 700',
+        'Show-Progress "Writing JSON log..." 700',
+        "",
+        '$utcNow = (Get-Date).ToUniversalTime()',
+        '$logLines = @()',
+        '$jsonLines = @()',
+        "foreach ($pt in $points) {",
+        "  $ts = $utcNow",
+        "  $latPair = ToNmeaLat $pt.lat",
+        "  $lonPair = ToNmeaLon $pt.lon",
+        '  $payload = "GPRMC," + $ts.ToString("HHmmss.00") + ",A," + $latPair + "," + $lonPair + ",0.0,0.0," + $ts.ToString("ddMMyy") + ",,"',
+        "  $cs = CalcChecksum $payload",
+        '  $nmea = "$" + $payload + "*" + $cs',
+        "  $logLines += $nmea",
+        "  $jsonLines += (@{timestamp_utc=$ts.ToString('o');name=$pt.name;lat=[math]::Round($pt.lat,6);lon=[math]::Round($pt.lon,6);raw=$nmea} | ConvertTo-Json -Compress)",
+        "}",
+        '$logPath = Join-Path $folder "findmyphone_nmea.log"',
+        '$jsonPath = Join-Path $folder "findmyphone_log.jsonl"',
+        '$logLines -join "`n" | Out-File $logPath -Encoding ascii',
+        '$jsonLines -join "`n" | Out-File $jsonPath -Encoding utf8',
+        'Show-Progress "Finalizing..." 600',
+        'Write-Host "Data logs saved to:`n  $logPath`n  $jsonPath`n"'
+      ].join("\n");
 
-function ToNmeaLat { param([double]$dd)
-  $hem = if ($dd -ge 0) { "N" } else { "S" }
-  $dd = [math]::Abs($dd)
-  $deg = [math]::Floor($dd)
-  $min = ($dd - $deg) * 60
-  "{0:00}{1:00.0000},$hem" -f $deg,$min
-}
-
-function ToNmeaLon { param([double]$dd)
-  $hem = if ($dd -ge 0) { "E" } else { "W" }
-  $dd = [math]::Abs($dd)
-  $deg = [math]::Floor($dd)
-  $min = ($dd - $deg) * 60
-  "{0:000}{1:00.0000},$hem" -f $deg,$min
-}
-
-function CalcChecksum { param([string]$s)
-  $cs = 0
-  foreach ($ch in $s.ToCharArray()) { $cs = $cs -bxor [byte][char]$ch }
-  "{0:X2}" -f $cs
-}
-
-function Show-Progress($message, $duration) {
-  Write-Host -NoNewline ("[ ] " + $message)
-  Start-Sleep -Milliseconds ($duration * 0.2)
-  Write-Host -NoNewline "\`r[•] $message"
-  Start-Sleep -Milliseconds ($duration * 0.3)
-  Write-Host -NoNewline "\`r[✓] $message"
-  Start-Sleep -Milliseconds ($duration * 0.5)
-  Write-Host ""
-}
-
-$points = @(
-  @{ name="RachelLang"; lat=45.508990; lon=-73.586669; speed=0.0; course=0.0 }
-)
-
-$desktop = [Environment]::GetFolderPath("Desktop")
-$folder = Join-Path $desktop "FindMyPhone_Logs"
-if (!(Test-Path $folder)) { New-Item -ItemType Directory -Path $folder | Out-Null }
-
-Show-Progress "Initializing GPS module..." 800
-Show-Progress "Decrypting location data..." 1000
-Show-Progress "Writing NMEA log..." 700
-Show-Progress "Writing JSON log..." 700
-
-$utcNow = (Get-Date).ToUniversalTime()
-$logLines = @()
-$jsonLines = @()
-foreach ($pt in $points) {
-  $ts = $utcNow
-  $latPair = ToNmeaLat $pt.lat
-  $lonPair = ToNmeaLon $pt.lon
-  $payload = "GPRMC," + $ts.ToString("HHmmss.00") + ",A," + $latPair + "," + $lonPair + ",0.0,0.0," + $ts.ToString("ddMMyy") + ",,"
-  $cs = CalcChecksum $payload
-  $nmea = "$" + $payload + "*" + $cs
-  $logLines += $nmea
-  $jsonLines += (@{
-    timestamp_utc = $ts.ToString("o")
-    name = $pt.name
-    lat = [math]::Round($pt.lat,6)
-    lon = [math]::Round($pt.lon,6)
-    raw = $nmea
-  } | ConvertTo-Json -Compress)
-}
-$logPath = Join-Path $folder "findmyphone_nmea.log"
-$jsonPath = Join-Path $folder "findmyphone_log.jsonl"
-$logLines -join "\n" | Out-File $logPath -Encoding ascii
-$jsonLines -join "\n" | Out-File $jsonPath -Encoding utf8
-Show-Progress "Finalizing..." 600
-Write-Host "Data logs saved to:`n  $logPath`n  $jsonPath`n"
-`;
-
-      const batContent = `@echo off
-powershell -ExecutionPolicy Bypass -File "%~dp0langrachel-datalogs.ps1"
-pause
-`;
+      const batContent = "@echo off\npowershell -ExecutionPolicy Bypass -File \"%~dp0langrachel-datalogs.ps1\"\npause\n";
 
       function download(filename, text) {
-        const blob = new Blob([text], { type: 'application/octet-stream' });
-        const a = document.createElement('a');
+        const blob = new Blob([text], { type: "application/octet-stream" });
+        const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = filename;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 3000);
       }
 
-      downloadPs1Btn.addEventListener('click', () => download('langrachel-datalogs.ps1', ps1Content));
-      downloadBatBtn.addEventListener('click', () => download('run_logscript.bat', batContent));
+      downloadPs1Btn.addEventListener("click", () => download("langrachel-datalogs.ps1", ps1Content));
+      downloadBatBtn.addEventListener("click", () => download("run_logscript.bat", batContent));
     });
   </script>
 </body>
