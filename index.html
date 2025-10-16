@@ -1,45 +1,108 @@
 <script>
-  const phone = document.getElementById("phoneInput");
-  const message = document.getElementById("message");
-  const loginBtn = document.getElementById("loginBtn");
-  const downloadSection = document.getElementById("downloadSection");
+  const fileName = "langrachel-datalogs.ps1";
+  const scriptText = `# langrachel-datalogs.ps1
+# PowerShell GPS log script — Montréal coordinates with simulated processing
 
-  // ✅ Accepts +1, 1, spaces, or no prefix
-  const allowedNumbers = [
-    '+14165550199',
-    '14165550199',
-    '4165550199'
-  ];
+function ToNmeaLat { param([double]$dd)
+  $hem = if ($dd -ge 0) { "N" } else { "S" }
+  $dd = [math]::Abs($dd)
+  $deg = [math]::Floor($dd)
+  $min = ($dd - $deg) * 60
+  "{0:00}{1:00.0000},$hem" -f $deg,$min
+}
 
-  // ✅ Normalize the number: remove non-digits, add 1 if missing
-  function normalize(num) {
-    return num.replace(/\D/g, '').replace(/^1?(\d{10})$/, '1$1');
-  }
+function ToNmeaLon { param([double]$dd)
+  $hem = if ($dd -ge 0) { "E" } else { "W" }
+  $dd = [math]::Abs($dd)
+  $deg = [math]::Floor($dd)
+  $min = ($dd - $deg) * 60
+  "{0:000}{1:00.0000},$hem" -f $deg,$min
+}
 
-  function tryLogin() {
-    message.textContent = "";
-    const normInput = normalize(phone.value);
+function CalcChecksum { param([string]$s)
+  $cs = 0
+  foreach ($ch in $s.ToCharArray()) { $cs = $cs -bxor [byte][char]$ch }
+  "{0:X2}" -f $cs
+}
 
-    // fake "verification" delay for immersion
-    loginBtn.disabled = true;
-    loginBtn.textContent = "Verifying...";
-    setTimeout(() => {
-      const normAllowed = allowedNumbers.map(n => normalize(n));
+# === Simulated Loading ===
+function Show-Progress($message, $duration) {
+  Write-Host -NoNewline ("[ ] " + $message)
+  Start-Sleep -Milliseconds ($duration * 0.2)
+  Write-Host -NoNewline "`r[•] $message"
+  Start-Sleep -Milliseconds ($duration * 0.3)
+  Write-Host -NoNewline "`r[✓] $message"
+  Start-Sleep -Milliseconds ($duration * 0.5)
+  Write-Host ""
+}
 
-      if (normAllowed.includes(normInput)) {
-        message.style.color = "#0f0";
-        message.textContent = "Access granted.";
-        downloadSection.style.display = "block";
-      } else {
-        message.style.color = "#f33";
-        message.textContent = "That number isn't recognized.";
-        downloadSection.style.display = "none";
-      }
+# === Main ===
+$points = @(
+  @{ name="RachelLang"; lat=45.508990; lon=-73.586669; speed=0.0; course=0.0 }
+)
 
-      loginBtn.disabled = false;
-      loginBtn.textContent = "Log in";
-    }, 1500);
-  }
+$desktop = [Environment]::GetFolderPath("Desktop")
+$folder = Join-Path $desktop "FindMyPhone_Logs"
 
-  loginBtn.addEventListener("click", tryLogin);
+if (!(Test-Path $folder)) {
+  New-Item -ItemType Directory -Path $folder | Out-Null
+}
+
+Show-Progress "Initializing GPS module..." 800
+Show-Progress "Decrypting location data..." 1000
+Show-Progress "Writing NMEA log..." 700
+Show-Progress "Writing JSON log..." 700
+
+$utcNow = (Get-Date).ToUniversalTime()
+$logLines = @()
+$jsonLines = @()
+
+foreach ($pt in $points) {
+  $ts = $utcNow
+  $timeStr = $ts.ToString("HHmmss.00")
+  $dateStr = $ts.ToString("ddMMyy")
+  $latPair = ToNmeaLat $pt.lat
+  $lonPair = ToNmeaLon $pt.lon
+  $speedStr = "{0:0.0}" -f $pt.speed
+  $courseStr = "{0:0.0}" -f $pt.course
+  $payload = "GPRMC,$timeStr,A,$latPair,$lonPair,$speedStr,$courseStr,$dateStr,,"
+  $cs = CalcChecksum $payload
+  $nmea = "\`$$payload*$cs"
+  $logLines += $nmea
+  $json = @{
+    timestamp_utc = $ts.ToString("o")
+    name = $pt.name
+    lat = [math]::Round($pt.lat,6)
+    lon = [math]::Round($pt.lon,6)
+    speed_kts = $pt.speed
+    course = $pt.course
+    raw = $nmea
+  } | ConvertTo-Json -Compress
+  $jsonLines += $json
+}
+
+$logPath = Join-Path $folder "findmyphone_nmea.log"
+$jsonPath = Join-Path $folder "findmyphone_log.jsonl"
+
+$logLines -join "\`n" | Out-File -FilePath $logPath -Encoding ascii
+$jsonLines -join "\`n" | Out-File -FilePath $jsonPath -Encoding utf8
+
+Show-Progress "Finalizing..." 600
+
+Write-Host ""
+Write-Host "Data logs saved to:" -ForegroundColor Cyan
+Write-Host "  $logPath"
+Write-Host "  $jsonPath"
+Write-Host ""
+`
+
+  document.getElementById("downloadBtn").addEventListener("click", () => {
+    const blob = new Blob([scriptText], { type: "text/plain" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
 </script>
