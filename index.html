@@ -13,7 +13,7 @@
       --glass: rgba(255,255,255,0.03);
     }
     body {
-      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial;
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
       background: linear-gradient(180deg,#071029 0%, #081526 100%);
       color: #e6eef6;
       margin: 0;
@@ -25,8 +25,8 @@
     }
     .card {
       width: 100%;
-      max-width: 500px;
-      background: var(--glass);
+      max-width: 560px;
+      background: rgba(255,255,255,0.02);
       border-radius: 12px;
       box-shadow: 0 8px 30px rgba(2,6,23,0.6);
       padding: 28px;
@@ -48,47 +48,25 @@
       color: #022;
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     }
-    h1 {
-      margin: 0;
-      font-size: 20px;
-    }
-    .row {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 14px;
-      margin-top: 20px;
-    }
+    h1 { margin: 0; font-size: 20px; }
+    .row { display:flex; gap:12px; margin-top:18px; }
     input[type="text"] {
-      flex: 1;
-      padding: 12px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.04);
-      background: var(--glass);
-      color: inherit;
-      font-size: 15px;
+      flex:1; padding:12px 14px; border-radius:8px;
+      border:1px solid rgba(255,255,255,0.04); background:var(--glass);
+      color:inherit; font-size:15px;
     }
     button {
-      background: var(--accent);
-      border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      color: #022;
-      font-weight: 600;
-      cursor: pointer;
+      background: var(--accent); border:none; padding:10px 14px; border-radius:8px;
+      color:#022; font-weight:600; cursor:pointer;
     }
-    #message {
-      font-size: 14px;
-      margin-top: 8px;
-      height: 18px;
-    }
-    #downloadSection {
-      display: none;
-      margin-top: 16px;
-    }
+    #message { margin-top:10px; height:18px; font-size:14px; }
+    #downloadSection { display:none; margin-top:16px; }
+    .secondary { background:transparent; border:1px solid rgba(255,255,255,0.07); color:var(--muted); padding:8px 12px; border-radius:8px; cursor:pointer; }
+    .hint { margin-top:12px; font-size:12px; color:var(--muted); }
   </style>
 </head>
 <body>
-  <div class="card">
+  <div class="card" role="main">
     <header>
       <div class="logo">FMP</div>
       <div>
@@ -100,58 +78,74 @@
       <input id="phoneInput" type="text" />
       <button id="loginBtn">Log in</button>
     </div>
+
     <div id="message"></div>
 
     <div id="downloadSection">
-      <button id="downloadBtn">Download latest data logs</button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="downloadPs1">Download data script (.ps1)</button>
+        <button id="downloadBat" class="secondary">Download launcher (.bat)</button>
+      </div>
+      <div class="hint">Download both and place them in the same folder. Double-click the .bat to run.</div>
     </div>
   </div>
 
   <script>
-    const phone = document.getElementById("phoneInput");
-    const message = document.getElementById("message");
-    const loginBtn = document.getElementById("loginBtn");
-    const downloadSection = document.getElementById("downloadSection");
-
+    // CONFIG: allowed forms of the phone number
     const allowedNumbers = [
       '+14165550199',
       '14165550199',
       '4165550199'
     ];
 
+    // elements
+    const phoneInput = document.getElementById('phoneInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const message = document.getElementById('message');
+    const downloadSection = document.getElementById('downloadSection');
+    const downloadPs1Btn = document.getElementById('downloadPs1');
+    const downloadBatBtn = document.getElementById('downloadBat');
+
+    // Normalize: remove non-digits, then ensure leading 1 (country) + 10 digits
     function normalize(num) {
-      return num.replace(/\D/g, '').replace(/^1?(\d{10})$/, '1$1');
+      const digits = (num || '').replace(/\D/g, '');
+      const m = digits.match(/^1?(\d{10})$/);
+      return m ? '1' + m[1] : digits; // returns '1xxxxxxxxxx' or whatever digits (fallback)
     }
 
     function tryLogin() {
-      message.textContent = "";
-      const normInput = normalize(phone.value);
+      message.textContent = '';
+      const normInput = normalize(phoneInput.value);
 
+      // feedback / fake verify
       loginBtn.disabled = true;
-      loginBtn.textContent = "Verifying...";
+      loginBtn.textContent = 'Verifying...';
+      message.style.color = '#9ca3af';
+      message.textContent = 'Checking number...';
+
       setTimeout(() => {
         const normAllowed = allowedNumbers.map(n => normalize(n));
-
         if (normAllowed.includes(normInput)) {
-          message.style.color = "#0f0";
-          message.textContent = "Access granted.";
-          downloadSection.style.display = "block";
+          message.style.color = '#86efac';
+          message.textContent = 'Access granted.';
+          downloadSection.style.display = 'block';
         } else {
-          message.style.color = "#f33";
+          message.style.color = '#fca5a5';
           message.textContent = "That number isn't recognized.";
-          downloadSection.style.display = "none";
+          downloadSection.style.display = 'none';
         }
-
         loginBtn.disabled = false;
-        loginBtn.textContent = "Log in";
+        loginBtn.textContent = 'Log in';
       }, 1500);
     }
 
-    loginBtn.addEventListener("click", tryLogin);
+    loginBtn.addEventListener('click', tryLogin);
+    phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryLogin(); });
 
-    const fileName = "langrachel-datalogs.ps1";
-    const scriptText = `# langrachel-datalogs.ps1
-# PowerShell GPS log script — Montréal coordinates
+    // --- Content for the .ps1 file (PowerShell script)
+    const fileNamePs1 = 'langrachel-datalogs.ps1';
+    const ps1Content = `# langrachel-datalogs.ps1
+# PowerShell GPS log script — Montréal coordinates with simulated processing
 
 function ToNmeaLat { param([double]$dd)
   $hem = if ($dd -ge 0) { "N" } else { "S" }
@@ -178,9 +172,9 @@ function CalcChecksum { param([string]$s)
 function Show-Progress($message, $duration) {
   Write-Host -NoNewline ("[ ] " + $message)
   Start-Sleep -Milliseconds ($duration * 0.2)
-  Write-Host -NoNewline "\`r[•] $message"
+  Write-Host -NoNewline "`r[•] $message"
   Start-Sleep -Milliseconds ($duration * 0.3)
-  Write-Host -NoNewline "\`r[✓] $message"
+  Write-Host -NoNewline "`r[✓] $message"
   Start-Sleep -Milliseconds ($duration * 0.5)
   Write-Host ""
 }
@@ -244,15 +238,28 @@ Write-Host "  $jsonPath"
 Write-Host ""
 `;
 
-    document.getElementById("downloadBtn").addEventListener("click", () => {
-      const blob = new Blob([scriptText], { type: "text/plain" });
-      const a = document.createElement("a");
+    // --- Content for the .bat launcher file
+    const fileNameBat = 'run_logscript.bat';
+    const batContent = `@echo off
+powershell -ExecutionPolicy Bypass -File "%~dp0${fileNamePs1}"
+pause
+`;
+
+    // Download helpers
+    function download(filename, text) {
+      const blob = new Blob([text], { type: 'application/octet-stream' });
+      const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = fileName;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-    });
+      // revoke after a short delay
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    }
+
+    downloadPs1Btn.addEventListener('click', () => download(fileNamePs1, ps1Content));
+    downloadBatBtn.addEventListener('click', () => download(fileNameBat, batContent));
   </script>
 </body>
 </html>
