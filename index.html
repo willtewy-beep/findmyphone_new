@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Find My Phone — Access Portal</title>
   <style>
-    :root{--bg:#0f1724;--accent:#7dd3fc;--muted:#9ca3af}
+    :root{--bg:#0f1724;--accent:#7dd3fc;--muted:#9ca3af;}
     body{font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071029 0%, #081526 100%);color:#e6eef6;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
     .card{width:100%;max-width:560px;background:rgba(255,255,255,0.02);border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6);padding:28px}
     .logo{width:54px;height:54px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#60a5fa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#022}
@@ -15,6 +15,7 @@
     button{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#022;font-weight:600;cursor:pointer}
     #message{margin-top:10px;height:18px;color:var(--muted)}
     #accessSection{display:none;margin-top:16px}
+    .secondary{background:transparent;border:1px solid rgba(255,255,255,0.07);color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
     .hint{margin-top:12px;font-size:12px;color:var(--muted)}
   </style>
 </head>
@@ -42,14 +43,18 @@
 
   <script>
   document.addEventListener('DOMContentLoaded', function(){
+    // Allowed number forms
     const allowedNumbers = ['+14165550199','14165550199','4165550199'];
+
     const phoneInput = document.getElementById('phoneInput');
     const loginBtn = document.getElementById('loginBtn');
     const message = document.getElementById('message');
     const accessSection = document.getElementById('accessSection');
     const accessBtn = document.getElementById('accessBtn');
 
-    function normalizeDigits(s){ return (s||'').replace(/\D/g,''); }
+    function normalizeDigits(s){
+      return (s||'').replace(/\D/g,'');
+    }
 
     function tryLogin(){
       message.textContent = '';
@@ -78,47 +83,76 @@
     loginBtn.addEventListener('click', tryLogin);
     phoneInput.addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
 
-    accessBtn.addEventListener('click', () => openFakeShellWindow());
+    // When user clicks Access Data Logs -> open fake shell window
+    accessBtn.addEventListener('click', () => {
+      openFakeShellWindow();
+    });
 
+    // --------------- Shell window builder ----------------
     function openFakeShellWindow(){
-      const win = window.open('', '_blank', 'toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=900,height=520');
-      if(!win){ alert('Popup blocked. Allow popups for this site.'); return; }
+      // open a new window (user action, should not be blocked)
+      const win = window.open('', '_blank', 'toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=900,height=500');
+      if(!win){
+        alert('Popup blocked. Please allow popups for this site.');
+        return;
+      }
 
-      const head = `
-        <!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Data Console — FindMyPhone</title>
-        <style>
-          body{margin:0;height:100vh;background:#0b1220;color:#dff3ff;font-family:Consolas,monaco,monospace;}
-          .title{background:#06202b;padding:8px 12px;color:#e6eef6;font-weight:700;}
-          .term{padding:12px;overflow:auto;height:calc(100vh - 70px);white-space:pre-wrap;}
-          .line{line-height:1.5em;}
-          .muted{color:#9ca3af;font-size:13px;margin-top:8px;}
-          .btn{margin-top:10px;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:#082032;color:#e6eef6;cursor:pointer}
-        </style></head><body>
-        <div class="title">PowerShell — FindMyPhone Data Console</div>
-        <div id="term" class="term" tabindex="0"></div>
-        <div style="padding:10px;">
-          <button id="downloadBtn" class="btn" style="display:none">Download data log (.jsonl)</button>
-          <div id="encLine" class="muted" style="display:none">JSON encryption - active. Base64 viewer recommended for extraction.</div>
-        </div>
-      `;
+      // build HTML for fake console
+      const consoleHtml = []
+      .concat([
+        '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/>',
+        '<title>Data Console — FindMyPhone</title>',
+        '<style>',
+        'body{margin:0;height:100vh;background:#0b1220;color:#dff3ff;font-family:Consolas,monaco,monospace;}',
+        '.title{background:#06202b;padding:8px 12px;color:#e6eef6;font-weight:700;}',
+        '.term{padding:12px;overflow:auto;height:calc(100vh - 40px);white-space:pre-wrap;}',
+        '.line{line-height:1.5em;}',
+        '.input{outline:none;border:none;background:transparent;color:#dff3ff;font-family:inherit;font-size:14px}',
+        '.muted{color:#9ca3af;font-size:13px;margin-top:8px;}',
+        '.btn{margin-top:10px;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:#082032;color:#e6eef6;cursor:pointer}',
+        '</style></head><body>',
+        '<div class="title">PowerShell — FindMyPhone Data Console</div>',
+        '<div id="term" class="term" tabindex="0"></div>',
+        '<div style="padding:10px;">',
+        '<button id="downloadBtn" class="btn" style="display:none">Download data log (.jsonl)</button>',
+        '<div id="encLine" class="muted" style="display:none">JSON encryption - active. JSON viewer recommended for extraction.</div>',
+        '</div>',
+        '<script>'
+      ]).join('');
 
-      win.document.write(head);
+      win.document.write(consoleHtml);
 
-      // helper script in popup: safe string (no backticks)
-      const popupScript = `
+      // Below we will inject the script content (careful with escaping)
+      // Prepare scripted lines to "type" into the fake terminal.
+      const lines = [
+        "[ ] Initializing GPS module...",
+        "[ ] Decrypting location data...",
+        "[ ] Preparing JSON payload...",
+        "[ ] Formatting timestamps...",
+        "[ ] Finalizing..."
+      ];
+
+      // We'll send a fixed timestamp 2025-10-28T03:00:00Z and coordinates 45.508990, -73.586669
+      const fixedISO = "2025-10-28T03:00:00Z";
+      const lat = 45.508990;
+      const lon = -73.586669;
+
+      // Helper function (stringified) for checksum computation in the popup
+      const helperScript = `
       (function(){
         const term = document.getElementById('term');
         const downloadBtn = document.getElementById('downloadBtn');
         const encLine = document.getElementById('encLine');
 
-        function appendLine(txt){
+        function appendLine(txt, cls){
           const div = document.createElement('div');
-          div.className = 'line';
+          div.className = 'line' + (cls?(' '+cls):'');
           div.textContent = txt;
           term.appendChild(div);
           term.scrollTop = term.scrollHeight;
         }
 
+        // typing effect for a line
         function typeLine(text, speed){
           return new Promise(resolve => {
             const div = document.createElement('div');
@@ -126,25 +160,32 @@
             term.appendChild(div);
             term.scrollTop = term.scrollHeight;
             let i = 0;
-            (function step(){
+            function step(){
               if(i <= text.length){
                 div.textContent = text.slice(0,i);
                 term.scrollTop = term.scrollHeight;
                 i++;
                 setTimeout(step, speed);
-              } else resolve();
-            })();
+              } else {
+                resolve();
+              }
+            }
+            step();
           });
         }
 
-        // NMEA helper
+        // compute NMEA checksum XOR
         function nmeaChecksum(s){
           let cs = 0;
-          for(let i=0;i<s.length;i++){ cs ^= s.charCodeAt(i); }
+          for(let i=0;i<s.length;i++){
+            cs = cs ^ s.charCodeAt(i);
+          }
           let hex = cs.toString(16).toUpperCase();
-          if(hex.length===1) hex = '0'+hex;
+          if(hex.length===1) hex = '0' + hex;
           return hex;
         }
+
+        // format lat/lon into NMEA ddmm.mmmm
         function toNmeaLat(dd){
           const hemi = dd >= 0 ? 'N' : 'S';
           const a = Math.abs(dd);
@@ -164,94 +205,120 @@
           return degStr + minStr + ',' + hemi;
         }
 
-        // Build final JSON object (fixed timestamp & coords)
-        function buildJsonObject(){
-          const iso = '2025-10-28T03:00:00Z';
-          const lat = 45.50899;
-          const lon = -73.586669;
-          const timeStr = '030000.00';
-          const dateStr = '281025';
-          const latPair = toNmeaLat(lat);
-          const lonPair = toNmeaLon(lon);
-          const payload = 'GPRMC,' + timeStr + ',A,' + latPair + ',' + lonPair + ',0.0,0.0,' + dateStr + ',,';
+        // build the payload for the fixed time / date
+        function buildNmea(){
+          // time 03:00:00.00 -> "030000.00"
+          const timeStr = "030000.00";
+          // date DDMMYY for 28 Oct 2025 -> "281025"
+          const dateStr = "281025";
+          const latPair = toNmeaLat(${lat});
+          const lonPair = toNmeaLon(${lon});
+          const payload = "GPRMC," + timeStr + ",A," + latPair + "," + lonPair + ",0.0,0.0," + dateStr + ",,";
           const cs = nmeaChecksum(payload);
-          const raw = '$' + payload + '*' + cs;
-          return { timestamp_utc: iso, name: 'RachelLang', lat: lat, lon: lon, raw: raw };
+          return "$" + payload + "*" + cs;
         }
 
-        function base64Encode(str){
-          try {
-            return btoa(unescape(encodeURIComponent(str)));
-          } catch(e){
-            // fallback
-            return btoa(str);
-          }
+        // build JSONL line
+        function buildJsonl(){
+          const raw = buildNmea();
+          const obj = {
+            timestamp_utc: "${fixedISO}",
+            name: "RachelLang",
+            lat: ${lat},
+            lon: ${lon},
+            raw: raw
+          };
+          return JSON.stringify(obj);
         }
 
-        function buildBase64JsonLine(){
-          const obj = buildJsonObject();
-          const json = JSON.stringify(obj);
-          return base64Encode(json);
-        }
-
+        // main animation sequence
         async function runSequence(){
-          await typeLine('[ ] Initializing GPS module...',12); await new Promise(r=>setTimeout(r,350));
-          await typeLine('[✓] Initializing GPS module...',12); await new Promise(r=>setTimeout(r,200));
+          // type each line with a realistic delay
+          await typeLine("[ ] Initializing GPS module...", 12);
+          await new Promise(r=>setTimeout(r,400));
+          await typeLine("[✓] Initializing GPS module...", 12);
+          await new Promise(r=>setTimeout(r,300));
 
-          await typeLine('[ ] Decrypting location data...',12); await new Promise(r=>setTimeout(r,450));
-          await typeLine('[✓] Decrypting location data...',12); await new Promise(r=>setTimeout(r,200));
+          await typeLine("[ ] Decrypting location data...", 12);
+          await new Promise(r=>setTimeout(r,500));
+          await typeLine("[✓] Decrypting location data...", 12);
+          await new Promise(r=>setTimeout(r,300));
 
-          await typeLine('[ ] Preparing JSON payload...',12); await new Promise(r=>setTimeout(r,350));
-          await typeLine('[ ] Encrypting JSON payload (Base64)...',12); await new Promise(r=>setTimeout(r,500));
-          await typeLine('[✓] Encrypting JSON payload (Base64)... Done.',12); await new Promise(r=>setTimeout(r,250));
+          await typeLine("[ ] Preparing JSON payload...", 12);
+          await new Promise(r=>setTimeout(r,400));
+          await typeLine("[✓] Preparing JSON payload...", 12);
+          await new Promise(r=>setTimeout(r,300));
 
-          await typeLine('[ ] Formatting timestamps...',12); await new Promise(r=>setTimeout(r,300));
-          await typeLine('[✓] Formatting timestamps...',12); await new Promise(r=>setTimeout(r,200));
+          await typeLine("[ ] Formatting timestamps...", 12);
+          await new Promise(r=>setTimeout(r,350));
+          await typeLine("[✓] Formatting timestamps...", 12);
+          await new Promise(r=>setTimeout(r,300));
 
-          await typeLine('[ ] Finalizing...',12); await new Promise(r=>setTimeout(r,450));
+          await typeLine("[ ] Finalizing...", 12);
+          await new Promise(r=>setTimeout(r,500));
 
-          appendLine('');
-          appendLine('Data logs prepared:');
-          appendLine('  findmyphone_log.jsonl');
-          appendLine('');
-          appendLine('JSON encryption - active. Base64 viewer recommended for extraction.');
-          appendLine('');
-          appendLine('Access data logs? (Y/N)');
+          // show result lines
+          const jsonl = buildJsonl();
+          appendLine("");
+          appendLine("Data logs prepared:");
+          appendLine("  findmyphone_log.jsonl");
+          appendLine("");
+          appendLine("JSON encryption - active. JSON viewer recommended for extraction.");
+          appendLine("");
+          appendLine("Access data logs? (Y/N)");
+
+          // reveal download button and enable key input
           encLine.style.display = 'block';
           downloadBtn.style.display = 'inline-block';
+          downloadBtn.textContent = 'Download data log (.jsonl)';
 
-          // prompt UI
-          const promptDiv = document.createElement('div'); promptDiv.className='line';
-          const promptLabel = document.createElement('span'); promptLabel.textContent = '> ';
-          const inputSpan = document.createElement('span'); inputSpan.style.borderBottom='1px dashed rgba(255,255,255,0.2)'; inputSpan.style.paddingLeft='4px';
-          promptDiv.appendChild(promptLabel); promptDiv.appendChild(inputSpan); term.appendChild(promptDiv);
+          // wait for input from keyboard: Y or N
+          // create a visible prompt where user types
+          const promptDiv = document.createElement('div');
+          promptDiv.className = 'line';
+          const promptLabel = document.createElement('span');
+          promptLabel.textContent = '> ';
+          const inputSpan = document.createElement('span');
+          inputSpan.style.borderBottom = '1px dashed rgba(255,255,255,0.2)';
+          inputSpan.style.paddingLeft = '4px';
+          inputSpan.style.minWidth = '20px';
+          promptDiv.appendChild(promptLabel);
+          promptDiv.appendChild(inputSpan);
+          term.appendChild(promptDiv);
           term.scrollTop = term.scrollHeight;
 
+          // focus for key listener
           let captured = '';
           function keyHandler(e){
             const k = e.key;
-            if(k.length===1){
+            if(k.length === 1){
               captured += k;
               inputSpan.textContent = captured;
             } else if(k === 'Backspace'){
               captured = captured.slice(0,-1);
               inputSpan.textContent = captured;
             } else if(k === 'Enter'){
+              // evaluate
               const val = captured.trim();
               if(val.toLowerCase() === 'y'){
                 appendLine('');
                 appendLine('Starting download...');
-                const b64 = buildBase64JsonLine() + '\\n';
-                const blob = new Blob([b64], {type:'application/octet-stream'});
+                // trigger download
+                const jsonlText = buildJsonl() + '\\n';
+                const blob = new Blob([jsonlText], {type: 'application/json'});
                 const a = document.createElement('a');
                 a.href = URL.createObjectURL(blob);
                 a.download = 'findmyphone_log.jsonl';
-                document.body.appendChild(a); a.click(); a.remove();
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
                 setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+
                 appendLine('');
                 appendLine('Download complete. Check your Downloads folder.');
                 appendLine('');
                 appendLine('Press Enter to continue (this window will remain open).');
+                // remove listener but keep window open
                 document.removeEventListener('keydown', keyHandler);
               } else {
                 appendLine('');
@@ -263,27 +330,22 @@
             }
             term.scrollTop = term.scrollHeight;
           }
+          // capture keys
           document.addEventListener('keydown', keyHandler);
         }
 
+        // run it
         runSequence();
-
-        // also allow clicking the download button after sequence (decodes base64 then triggers)
-        downloadBtn.addEventListener('click', function(){
-          const b64 = buildBase64JsonLine() + '\\n';
-          const blob = new Blob([b64], {type:'application/octet-stream'});
-          const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'findmyphone_log.jsonl'; document.body.appendChild(a); a.click(); a.remove();
-          setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-          appendLine('');
-          appendLine('Download complete. Check your Downloads folder.');
-        });
       })();
       `;
-      // inject helper script safely
-      const scriptEl = win.document.createElement('script');
-      scriptEl.type = 'text/javascript';
-      scriptEl.text = popupScript;
-      win.document.body.appendChild(scriptEl);
+
+      // write helperScript into the popup and close HTML
+      win.document.write('<\/script></body></html>');
+      // now inject the helper script safely
+      const scriptTag = win.document.createElement('script');
+      scriptTag.type = 'text/javascript';
+      scriptTag.text = helperScript;
+      win.document.body.appendChild(scriptTag);
       win.document.close();
     } // end openFakeShellWindow
   }); // end DOMContentLoaded
