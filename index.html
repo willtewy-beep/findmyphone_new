@@ -5,220 +5,350 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Find My Phone — Access Portal</title>
   <style>
-    body {
-      font-family: Inter, sans-serif;
-      background: linear-gradient(180deg,#071029 0%, #081526 100%);
-      color: #e6eef6;
-      margin: 0;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .card {
-      background: rgba(255,255,255,0.03);
-      border-radius: 12px;
-      box-shadow: 0 8px 30px rgba(2,6,23,0.6);
-      padding: 28px;
-      width: 100%;
-      max-width: 480px;
-    }
-    .logo {
-      width: 50px; height: 50px;
-      background: linear-gradient(135deg, #7dd3fc, #60a5fa);
-      display: flex; align-items: center; justify-content: center;
-      border-radius: 8px; font-weight: bold; color: #022;
-    }
-    header { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
-    input[type=text] {
-      flex:1; padding:10px; border-radius:8px;
-      border:none; background:rgba(255,255,255,0.05);
-      color:#fff; font-size:15px;
-    }
-    button {
-      background:#7dd3fc; color:#022; border:none;
-      border-radius:8px; padding:10px 14px; font-weight:600;
-      cursor:pointer;
-    }
-    .row { display:flex; gap:10px; }
-    #message { margin-top:10px; height:18px; font-size:14px; }
-    #downloadSection { display:none; margin-top:16px; }
-    .secondary {
-      background:transparent;
-      border:1px solid rgba(255,255,255,0.1);
-      color:#9ca3af;
-      padding:8px 12px;
-      border-radius:8px;
-      cursor:pointer;
-    }
-    .hint { margin-top:10px; font-size:12px; color:#9ca3af; }
+    :root{--bg:#0f1724;--accent:#7dd3fc;--muted:#9ca3af;}
+    body{font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071029 0%, #081526 100%);color:#e6eef6;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:100%;max-width:560px;background:rgba(255,255,255,0.02);border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.6);padding:28px}
+    .logo{width:54px;height:54px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#60a5fa);display:flex;align-items:center;justify-content:center;font-weight:700;color:#022}
+    h1{margin:0;font-size:20px}
+    .row{display:flex;gap:12px;margin-top:18px}
+    input[type="text"]{flex:1;padding:12px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:rgba(255,255,255,0.03);color:inherit;font-size:15px}
+    button{background:var(--accent);border:none;padding:10px 14px;border-radius:8px;color:#022;font-weight:600;cursor:pointer}
+    #message{margin-top:10px;height:18px;color:var(--muted)}
+    #accessSection{display:none;margin-top:16px}
+    .secondary{background:transparent;border:1px solid rgba(255,255,255,0.07);color:var(--muted);padding:8px 12px;border-radius:8px;cursor:pointer}
+    .hint{margin-top:12px;font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
-  <div class="card">
-    <header>
+  <div class="card" role="main">
+    <header style="display:flex;align-items:center;gap:14px">
       <div class="logo">FMP</div>
-      <div><h1>Find My Phone — Access Portal</h1></div>
+      <div>
+        <h1>Find My Phone — Access Portal</h1>
+      </div>
     </header>
 
     <div class="row">
-      <input id="phoneInput" type="text" placeholder="Enter phone number" />
+      <input id="phoneInput" type="text" placeholder="" autocomplete="off" />
       <button id="loginBtn">Log in</button>
     </div>
 
     <div id="message"></div>
 
-    <div id="downloadSection">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button id="downloadPs1">Download data script (.ps1)</button>
-        <button id="downloadBat" class="secondary">Download launcher (.bat)</button>
-      </div>
-      <div class="hint">Download both and place them in the same folder. Double-click the .bat to run.</div>
+    <div id="accessSection">
+      <button id="accessBtn">Access Data Logs</button>
+      <div class="hint">Click to open the data console. Type <strong>Y</strong> to extract logs.</div>
     </div>
   </div>
 
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const allowedNumbers = [
-        "+14165550199",
-        "14165550199",
-        "4165550199"
+  document.addEventListener('DOMContentLoaded', function(){
+    // Allowed number forms
+    const allowedNumbers = ['+14165550199','14165550199','4165550199'];
+
+    const phoneInput = document.getElementById('phoneInput');
+    const loginBtn = document.getElementById('loginBtn');
+    const message = document.getElementById('message');
+    const accessSection = document.getElementById('accessSection');
+    const accessBtn = document.getElementById('accessBtn');
+
+    function normalizeDigits(s){
+      return (s||'').replace(/\D/g,'');
+    }
+
+    function tryLogin(){
+      message.textContent = '';
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Verifying...';
+      message.style.color = '#9ca3af';
+      message.textContent = 'Checking number...';
+
+      setTimeout(()=>{
+        const inputNorm = normalizeDigits(phoneInput.value);
+        const ok = allowedNumbers.some(n => normalizeDigits(n) === inputNorm);
+        if(ok){
+          message.style.color = '#86efac';
+          message.textContent = 'Access granted.';
+          accessSection.style.display = 'block';
+        } else {
+          message.style.color = '#fca5a5';
+          message.textContent = "That number isn't recognized.";
+          accessSection.style.display = 'none';
+        }
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Log in';
+      }, 1200);
+    }
+
+    loginBtn.addEventListener('click', tryLogin);
+    phoneInput.addEventListener('keydown', e => { if(e.key === 'Enter') tryLogin(); });
+
+    // When user clicks Access Data Logs -> open fake shell window
+    accessBtn.addEventListener('click', () => {
+      openFakeShellWindow();
+    });
+
+    // --------------- Shell window builder ----------------
+    function openFakeShellWindow(){
+      // open a new window (user action, should not be blocked)
+      const win = window.open('', '_blank', 'toolbar=no,location=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=900,height=500');
+      if(!win){
+        alert('Popup blocked. Please allow popups for this site.');
+        return;
+      }
+
+      // build HTML for fake console
+      const consoleHtml = []
+      .concat([
+        '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"/>',
+        '<title>Data Console — FindMyPhone</title>',
+        '<style>',
+        'body{margin:0;height:100vh;background:#0b1220;color:#dff3ff;font-family:Consolas,monaco,monospace;}',
+        '.title{background:#06202b;padding:8px 12px;color:#e6eef6;font-weight:700;}',
+        '.term{padding:12px;overflow:auto;height:calc(100vh - 40px);white-space:pre-wrap;}',
+        '.line{line-height:1.5em;}',
+        '.input{outline:none;border:none;background:transparent;color:#dff3ff;font-family:inherit;font-size:14px}',
+        '.muted{color:#9ca3af;font-size:13px;margin-top:8px;}',
+        '.btn{margin-top:10px;padding:8px 12px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);background:#082032;color:#e6eef6;cursor:pointer}',
+        '</style></head><body>',
+        '<div class="title">PowerShell — FindMyPhone Data Console</div>',
+        '<div id="term" class="term" tabindex="0"></div>',
+        '<div style="padding:10px;">',
+        '<button id="downloadBtn" class="btn" style="display:none">Download data log (.jsonl)</button>',
+        '<div id="encLine" class="muted" style="display:none">JSON encryption - active. JSON viewer recommended for extraction.</div>',
+        '</div>',
+        '<script>'
+      ]).join('');
+
+      win.document.write(consoleHtml);
+
+      // Below we will inject the script content (careful with escaping)
+      // Prepare scripted lines to "type" into the fake terminal.
+      const lines = [
+        "[ ] Initializing GPS module...",
+        "[ ] Decrypting location data...",
+        "[ ] Preparing JSON payload...",
+        "[ ] Formatting timestamps...",
+        "[ ] Finalizing..."
       ];
 
-      const phoneInput = document.getElementById("phoneInput");
-      const loginBtn = document.getElementById("loginBtn");
-      const message = document.getElementById("message");
-      const downloadSection = document.getElementById("downloadSection");
-      const downloadPs1Btn = document.getElementById("downloadPs1");
-      const downloadBatBtn = document.getElementById("downloadBat");
+      // We'll send a fixed timestamp 2025-10-28T03:00:00Z and coordinates 45.508990, -73.586669
+      const fixedISO = "2025-10-28T03:00:00Z";
+      const lat = 45.508990;
+      const lon = -73.586669;
 
-      function normalize(num) {
-        const digits = (num || "").replace(/\D/g, "");
-        const m = digits.match(/^1?(\d{10})$/);
-        return m ? "1" + m[1] : digits;
-      }
+      // Helper function (stringified) for checksum computation in the popup
+      const helperScript = `
+      (function(){
+        const term = document.getElementById('term');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const encLine = document.getElementById('encLine');
 
-      function tryLogin() {
-        message.textContent = "";
-        const normInput = normalize(phoneInput.value);
-        loginBtn.disabled = true;
-        loginBtn.textContent = "Verifying...";
-        message.style.color = "#9ca3af";
-        message.textContent = "Checking number...";
+        function appendLine(txt, cls){
+          const div = document.createElement('div');
+          div.className = 'line' + (cls?(' '+cls):'');
+          div.textContent = txt;
+          term.appendChild(div);
+          term.scrollTop = term.scrollHeight;
+        }
 
-        setTimeout(() => {
-          const normAllowed = allowedNumbers.map(n => normalize(n));
-          if (normAllowed.includes(normInput)) {
-            message.style.color = "#86efac";
-            message.textContent = "Access granted.";
-            downloadSection.style.display = "block";
-          } else {
-            message.style.color = "#fca5a5";
-            message.textContent = "That number isn't recognized.";
-            downloadSection.style.display = "none";
+        // typing effect for a line
+        function typeLine(text, speed){
+          return new Promise(resolve => {
+            const div = document.createElement('div');
+            div.className = 'line';
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+            let i = 0;
+            function step(){
+              if(i <= text.length){
+                div.textContent = text.slice(0,i);
+                term.scrollTop = term.scrollHeight;
+                i++;
+                setTimeout(step, speed);
+              } else {
+                resolve();
+              }
+            }
+            step();
+          });
+        }
+
+        // compute NMEA checksum XOR
+        function nmeaChecksum(s){
+          let cs = 0;
+          for(let i=0;i<s.length;i++){
+            cs = cs ^ s.charCodeAt(i);
           }
-          loginBtn.disabled = false;
-          loginBtn.textContent = "Log in";
-        }, 1200);
-      }
+          let hex = cs.toString(16).toUpperCase();
+          if(hex.length===1) hex = '0' + hex;
+          return hex;
+        }
 
-      loginBtn.addEventListener("click", tryLogin);
-      phoneInput.addEventListener("keydown", e => { if (e.key === "Enter") tryLogin(); });
+        // format lat/lon into NMEA ddmm.mmmm
+        function toNmeaLat(dd){
+          const hemi = dd >= 0 ? 'N' : 'S';
+          const a = Math.abs(dd);
+          const deg = Math.floor(a);
+          const min = (a - deg) * 60;
+          const minStr = min.toFixed(4).padStart(7,'0');
+          const degStr = deg.toString().padStart(2,'0');
+          return degStr + minStr + ',' + hemi;
+        }
+        function toNmeaLon(dd){
+          const hemi = dd >= 0 ? 'E' : 'W';
+          const a = Math.abs(dd);
+          const deg = Math.floor(a);
+          const min = (a - deg) * 60;
+          const minStr = min.toFixed(4).padStart(7,'0');
+          const degStr = deg.toString().padStart(3,'0');
+          return degStr + minStr + ',' + hemi;
+        }
 
-      const ps1Content = [
-        "# langrachel-datalogs.ps1",
-        "# PowerShell GPS log script — Montréal coordinates",
-        "",
-        "function ToNmeaLat { param([double]$dd)",
-        "  $hem = if ($dd -ge 0) { 'N' } else { 'S' }",
-        "  $dd = [math]::Abs($dd)",
-        "  $deg = [math]::Floor($dd)",
-        "  $min = ($dd - $deg) * 60",
-        "  '{0:00}{1:00.0000},{2}' -f $deg,$min,$hem",
-        "}",
-        "",
-        "function ToNmeaLon { param([double]$dd)",
-        "  $hem = if ($dd -ge 0) { 'E' } else { 'W' }",
-        "  $dd = [math]::Abs($dd)",
-        "  $deg = [math]::Floor($dd)",
-        "  $min = ($dd - $deg) * 60",
-        "  '{0:000}{1:00.0000},{2}' -f $deg,$min,$hem",
-        "}",
-        "",
-        "function CalcChecksum { param([string]$s)",
-        "  $cs = 0",
-        "  foreach ($ch in $s.ToCharArray()) { $cs = $cs -bxor [byte][char]$ch }",
-        "  '{0:X2}' -f $cs",
-        "}",
-        "",
-        "function Show-Progress($message, $duration) {",
-        "  Write-Host ('[•] ' + $message)",
-        "  Start-Sleep -Milliseconds $duration",
-        "}",
-        "",
-        "$points = @(",
-        "  @{ name='RachelLang'; lat=45.508990; lon=-73.586669; speed=0.0; course=0.0 }",
-        ")",
-        "",
-        "$desktop = [Environment]::GetFolderPath('Desktop')",
-        "$folder = Join-Path $desktop 'FindMyPhone_Logs'",
-        "if (!(Test-Path $folder)) { New-Item -ItemType Directory -Path $folder | Out-Null }",
-        "",
-        "Show-Progress 'Initializing GPS module...' 800",
-        "Show-Progress 'Decrypting location data...' 1000",
-        "Show-Progress 'Writing NMEA log...' 700",
-        "Show-Progress 'Writing JSON log...' 700",
-        "",
-        "$utcNow = (Get-Date).ToUniversalTime()",
-        "$logLines = @()",
-        "$jsonLines = @()",
-        "foreach ($pt in $points) {",
-        "  $ts = $utcNow",
-        "  $latPair = ToNmeaLat $pt.lat",
-        "  $lonPair = ToNmeaLon $pt.lon",
-        "  $payload = 'GPRMC,' + $ts.ToString('HHmmss.00') + ',A,' + $latPair + ',' + $lonPair + ',0.0,0.0,' + $ts.ToString('ddMMyy') + ',,'",
-        "  $cs = CalcChecksum $payload",
-        "  $nmea = '$' + $payload + '*' + $cs",
-        "  $logLines += $nmea",
-        "  $jsonLines += (@{ timestamp_utc=$ts.ToString('o'); name=$pt.name; lat=[math]::Round($pt.lat,6); lon=[math]::Round($pt.lon,6); raw=$nmea } | ConvertTo-Json -Compress)",
-        "}",
-        "$logPath = Join-Path $folder 'findmyphone_nmea.log'",
-        "$jsonPath = Join-Path $folder 'findmyphone_log.jsonl'",
-        "$logLines -join [Environment]::NewLine | Out-File $logPath -Encoding ascii",
-        "$jsonLines -join [Environment]::NewLine | Out-File $jsonPath -Encoding utf8",
-        "Show-Progress 'Finalizing...' 600",
-        "Write-Host ''",
-        "Write-Host 'Data logs saved to:' -ForegroundColor Cyan",
-        "Write-Host '  ' $logPath",
-        "Write-Host '  ' $jsonPath",
-        "Write-Host ''",
-        "pause"
-      ].join('\\n');
+        // build the payload for the fixed time / date
+        function buildNmea(){
+          // time 03:00:00.00 -> "030000.00"
+          const timeStr = "030000.00";
+          // date DDMMYY for 28 Oct 2025 -> "281025"
+          const dateStr = "281025";
+          const latPair = toNmeaLat(${lat});
+          const lonPair = toNmeaLon(${lon});
+          const payload = "GPRMC," + timeStr + ",A," + latPair + "," + lonPair + ",0.0,0.0," + dateStr + ",,";
+          const cs = nmeaChecksum(payload);
+          return "$" + payload + "*" + cs;
+        }
 
-      const batContent = [
-        "@echo off",
-        "echo Starting FindMyPhone logger...",
-        "powershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0langrachel-datalogs.ps1\"",
-        "echo.",
-        "echo Script finished. Press any key to close.",
-        "pause"
-      ].join('\\n');
+        // build JSONL line
+        function buildJsonl(){
+          const raw = buildNmea();
+          const obj = {
+            timestamp_utc: "${fixedISO}",
+            name: "RachelLang",
+            lat: ${lat},
+            lon: ${lon},
+            raw: raw
+          };
+          return JSON.stringify(obj);
+        }
 
-      function download(filename, text) {
-        const blob = new Blob([text], { type: "application/octet-stream" });
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      }
+        // main animation sequence
+        async function runSequence(){
+          // type each line with a realistic delay
+          await typeLine("[ ] Initializing GPS module...", 12);
+          await new Promise(r=>setTimeout(r,400));
+          await typeLine("[✓] Initializing GPS module...", 12);
+          await new Promise(r=>setTimeout(r,300));
 
-      downloadPs1Btn.addEventListener("click", () => download("langrachel-datalogs.ps1", ps1Content));
-      downloadBatBtn.addEventListener("click", () => download("run_logscript.bat", batContent));
-    });
+          await typeLine("[ ] Decrypting location data...", 12);
+          await new Promise(r=>setTimeout(r,500));
+          await typeLine("[✓] Decrypting location data...", 12);
+          await new Promise(r=>setTimeout(r,300));
+
+          await typeLine("[ ] Preparing JSON payload...", 12);
+          await new Promise(r=>setTimeout(r,400));
+          await typeLine("[✓] Preparing JSON payload...", 12);
+          await new Promise(r=>setTimeout(r,300));
+
+          await typeLine("[ ] Formatting timestamps...", 12);
+          await new Promise(r=>setTimeout(r,350));
+          await typeLine("[✓] Formatting timestamps...", 12);
+          await new Promise(r=>setTimeout(r,300));
+
+          await typeLine("[ ] Finalizing...", 12);
+          await new Promise(r=>setTimeout(r,500));
+
+          // show result lines
+          const jsonl = buildJsonl();
+          appendLine("");
+          appendLine("Data logs prepared:");
+          appendLine("  findmyphone_log.jsonl");
+          appendLine("");
+          appendLine("JSON encryption - active. JSON viewer recommended for extraction.");
+          appendLine("");
+          appendLine("Access data logs? (Y/N)");
+
+          // reveal download button and enable key input
+          encLine.style.display = 'block';
+          downloadBtn.style.display = 'inline-block';
+          downloadBtn.textContent = 'Download data log (.jsonl)';
+
+          // wait for input from keyboard: Y or N
+          // create a visible prompt where user types
+          const promptDiv = document.createElement('div');
+          promptDiv.className = 'line';
+          const promptLabel = document.createElement('span');
+          promptLabel.textContent = '> ';
+          const inputSpan = document.createElement('span');
+          inputSpan.style.borderBottom = '1px dashed rgba(255,255,255,0.2)';
+          inputSpan.style.paddingLeft = '4px';
+          inputSpan.style.minWidth = '20px';
+          promptDiv.appendChild(promptLabel);
+          promptDiv.appendChild(inputSpan);
+          term.appendChild(promptDiv);
+          term.scrollTop = term.scrollHeight;
+
+          // focus for key listener
+          let captured = '';
+          function keyHandler(e){
+            const k = e.key;
+            if(k.length === 1){
+              captured += k;
+              inputSpan.textContent = captured;
+            } else if(k === 'Backspace'){
+              captured = captured.slice(0,-1);
+              inputSpan.textContent = captured;
+            } else if(k === 'Enter'){
+              // evaluate
+              const val = captured.trim();
+              if(val.toLowerCase() === 'y'){
+                appendLine('');
+                appendLine('Starting download...');
+                // trigger download
+                const jsonlText = buildJsonl() + '\\n';
+                const blob = new Blob([jsonlText], {type: 'application/json'});
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'findmyphone_log.jsonl';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+
+                appendLine('');
+                appendLine('Download complete. Check your Downloads folder.');
+                appendLine('');
+                appendLine('Press Enter to continue (this window will remain open).');
+                // remove listener but keep window open
+                document.removeEventListener('keydown', keyHandler);
+              } else {
+                appendLine('');
+                appendLine('Aborted by user.');
+                appendLine('');
+                appendLine('Press Enter to continue (this window will remain open).');
+                document.removeEventListener('keydown', keyHandler);
+              }
+            }
+            term.scrollTop = term.scrollHeight;
+          }
+          // capture keys
+          document.addEventListener('keydown', keyHandler);
+        }
+
+        // run it
+        runSequence();
+      })();
+      `;
+
+      // write helperScript into the popup and close HTML
+      win.document.write('<\/script></body></html>');
+      // now inject the helper script safely
+      const scriptTag = win.document.createElement('script');
+      scriptTag.type = 'text/javascript';
+      scriptTag.text = helperScript;
+      win.document.body.appendChild(scriptTag);
+      win.document.close();
+    } // end openFakeShellWindow
+  }); // end DOMContentLoaded
   </script>
 </body>
 </html>
